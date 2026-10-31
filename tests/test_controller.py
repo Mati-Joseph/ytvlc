@@ -1,5 +1,4 @@
 
-from threading import Event
 from unittest.mock import Mock
 
 import pytest
@@ -7,6 +6,7 @@ import pytest
 from ytvlc.controller import PlaybackController
 from ytvlc.extractor import Playlist, PlaylistEntry
 from ytvlc.resolver import StreamResolutionError
+
 
 @pytest.fixture
 def playlist():
@@ -38,7 +38,6 @@ def dependencies():
     return {
         "instance": Mock(),
         "player": Mock(),
-        "event_manager": Mock(),
         "resolver": Mock(
             side_effect=[
                 "https://example.com/stream1.mp4",
@@ -101,6 +100,7 @@ def test_error_event_signals_playback_failure(
     controller.on_playback_error(None)
 
     assert controller.playback_failed.is_set()
+    assert controller.track_finished.is_set()
 
 
 def test_controller_stops_and_releases_resources(
@@ -120,6 +120,27 @@ def test_controller_stops_and_releases_resources(
     dependencies["player"].release.assert_called_once()
     dependencies["instance"].release.assert_called_once()
 
+
+def test_cleanup_releases_resources_if_stop_fails(
+    playlist,
+    dependencies,
+):
+    controller = PlaybackController(
+        playlist,
+        instance=dependencies["instance"],
+        player=dependencies["player"],
+        resolver=dependencies["resolver"],
+    )
+
+    dependencies["player"].stop.side_effect = RuntimeError(
+        "Stop failed"
+    )
+
+    with pytest.raises(RuntimeError, match="Stop failed"):
+        controller.cleanup()
+
+    dependencies["player"].release.assert_called_once()
+    dependencies["instance"].release.assert_called_once()
 
 
 def test_run_advances_after_track_finishes(
@@ -202,3 +223,26 @@ def test_run_skips_track_when_vlc_reports_playback_error(
         ((playlist.entries[0],),),
         ((playlist.entries[1],),),
     ]
+
+
+def test_run_propagates_keyboard_interrupt_after_cleanup(
+    playlist,
+    dependencies,
+):
+    controller = PlaybackController(
+        playlist,
+        instance=dependencies["instance"],
+        player=dependencies["player"],
+        resolver=dependencies["resolver"],
+    )
+
+    controller.start_track = Mock(
+        side_effect=KeyboardInterrupt
+    )
+
+    with pytest.raises(KeyboardInterrupt):
+        controller.run()
+
+    dependencies["player"].stop.assert_called_once()
+    dependencies["player"].release.assert_called_once()
+    dependencies["instance"].release.assert_called_once()

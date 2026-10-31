@@ -28,14 +28,35 @@ class PlaybackController:
         self.playlist = playlist
         self.resolver = resolver
 
-        self.instance = instance or vlc.Instance(
-            "--no-video-title-show"
-        )
+        try:
+            self.instance = (
+                instance
+                if instance is not None
+                else vlc.Instance("--no-video-title-show")
+            )
+        except vlc.VLCException as exc:
+            raise RuntimeError(
+                f"Could not initialize VLC: {exc}"
+            ) from exc
 
         if self.instance is None:
             raise RuntimeError("Could not initialize VLC.")
 
-        self.player = player or self.instance.media_player_new()
+        try:
+            self.player = (
+                player
+                if player is not None
+                else self.instance.media_player_new()
+            )
+        except vlc.VLCException as exc:
+            self.instance.release()
+            raise RuntimeError(
+                f"Could not create VLC media player: {exc}"
+            ) from exc
+
+        if self.player is None:
+            self.instance.release()
+            raise RuntimeError("Could not create VLC media player.")
 
         self.track_finished = Event()
         self.playback_failed = Event()
@@ -80,9 +101,13 @@ class PlaybackController:
 
     def cleanup(self):
         """Stop playback and release VLC resources."""
-        self.player.stop()
-        self.player.release()
-        self.instance.release()
+        try:
+            self.player.stop()
+        finally:
+            try:
+                self.player.release()
+            finally:
+                self.instance.release()
 
     def run(self):
         """Play playlist entries sequentially."""
@@ -107,9 +132,6 @@ class PlaybackController:
                     continue
 
             print("\nPlaylist finished.")
-
-        except KeyboardInterrupt:
-            print("\nPlayback interrupted.")
 
         finally:
             self.cleanup()
