@@ -17,6 +17,12 @@ The project originated from a need to retain Last.fm scrobbling while playing Yo
 - Clean up VLC resources when playback ends or is interrupted.
 - Provide a command-line interface with argument validation.
 
+## Development status
+
+Version: `0.3.0`
+
+The CLI and sequential playlist playback features are implemented. The project remains under active development.
+
 ## Requirements
 
 - Linux

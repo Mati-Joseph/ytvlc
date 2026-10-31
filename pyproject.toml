@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ytvlc"
-version = "0.3.0.dev0"
+version = "0.3.0"
 description = "Play YouTube playlists sequentially in VLC"
 readme = "README.md"
 requires-python = ">=3.12"
