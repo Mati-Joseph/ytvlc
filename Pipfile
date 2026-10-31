@@ -8,6 +8,7 @@ python-vlc = "*"
 
 [dev-packages]
 pytest = "*"
+ytvlc = {path = ".", editable = true}
 
 [requires]
 python_version = "3.12"

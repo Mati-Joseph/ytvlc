@@ -1,24 +1,40 @@
 # ytvlc
 
-A lightweight Linux command-line tool for playing YouTube playlists
-sequentially in VLC without downloading the videos.
+A lightweight Linux command-line tool for playing YouTube playlists sequentially in VLC without downloading videos.
 
-## Planned features
+## Motivation
+
+The project originated from a need to retain Last.fm scrobbling while playing YouTube playlists through VLC.
+
+## Features
 
 - Extract YouTube playlist entries using yt-dlp.
-- Preserve playlist order.
+- Preserve the original playlist order.
 - Resolve video streams on demand.
-- Play through VLC.
+- Play tracks sequentially through VLC.
+- Skip tracks when stream resolution or playback fails.
 - Handle Markdown-escaped playlist URLs.
-- Clean up temporary resources when playback ends.
+- Clean up VLC resources when playback ends or is interrupted.
+- Provide a command-line interface with argument validation.
 
 ## Requirements
 
-- Python 3
-- VLC
+- Linux
+- Python 3.12 or later
+- VLC media player and its libVLC libraries
 - yt-dlp
 - Node.js (for yt-dlp JavaScript challenge support)
 
-## Development status
+## Installation
 
-Project setup.
+Install the external requirements first:
+
+- [VLC](https://www.videolan.org/vlc/)
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+- [Node.js](https://nodejs.org/)
+
+From the project root, install the Python dependencies and the editable project:
+
+```bash
+pipenv install --dev
+```
