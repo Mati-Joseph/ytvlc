@@ -6,7 +6,7 @@ import pytest
 
 from ytvlc.controller import PlaybackController
 from ytvlc.extractor import Playlist, PlaylistEntry
-
+from ytvlc.resolver import StreamResolutionError
 
 @pytest.fixture
 def playlist():
@@ -119,3 +119,86 @@ def test_controller_stops_and_releases_resources(
     dependencies["player"].stop.assert_called_once()
     dependencies["player"].release.assert_called_once()
     dependencies["instance"].release.assert_called_once()
+
+
+
+def test_run_advances_after_track_finishes(
+    playlist,
+    dependencies,
+):
+    controller = PlaybackController(
+        playlist,
+        instance=dependencies["instance"],
+        player=dependencies["player"],
+        resolver=dependencies["resolver"],
+    )
+
+    def finish_track(entry):
+        controller.on_track_end(None)
+
+    controller.start_track = Mock(side_effect=finish_track)
+
+    controller.run()
+
+    assert controller.start_track.call_args_list == [
+        ((playlist.entries[0],),),
+        ((playlist.entries[1],),),
+    ]
+
+    dependencies["player"].stop.assert_called_once()
+    dependencies["player"].release.assert_called_once()
+    dependencies["instance"].release.assert_called_once()
+
+
+def test_run_skips_track_when_stream_resolution_fails(
+    playlist,
+    dependencies,
+):
+    controller = PlaybackController(
+        playlist,
+        instance=dependencies["instance"],
+        player=dependencies["player"],
+        resolver=dependencies["resolver"],
+    )
+
+    def start_track(entry):
+        if entry == playlist.entries[0]:
+            raise StreamResolutionError("Stream unavailable.")
+
+        controller.on_track_end(None)
+
+    controller.start_track = Mock(side_effect=start_track)
+
+    controller.run()
+
+    assert controller.start_track.call_args_list == [
+        ((playlist.entries[0],),),
+        ((playlist.entries[1],),),
+    ]
+
+
+def test_run_skips_track_when_vlc_reports_playback_error(
+    playlist,
+    dependencies,
+):
+    controller = PlaybackController(
+        playlist,
+        instance=dependencies["instance"],
+        player=dependencies["player"],
+        resolver=dependencies["resolver"],
+    )
+
+    def start_track(entry):
+        if entry == playlist.entries[0]:
+            controller.on_playback_error(None)
+        else:
+            controller.on_track_end(None)
+
+    controller.start_track = Mock(side_effect=start_track)
+
+    controller.run()
+
+    assert controller.start_track.call_args_list == [
+        ((playlist.entries[0],),),
+        ((playlist.entries[1],),),
+    ]

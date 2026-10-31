@@ -4,7 +4,14 @@ from threading import Event
 import vlc
 
 from .extractor import Playlist
-from .resolver import resolve_stream
+from .resolver import (
+    StreamResolutionError,
+    resolve_stream,
+)
+
+
+class VLCPlaybackError(Exception):
+    """Raised when VLC cannot start a track."""
 
 
 class PlaybackController:
@@ -52,6 +59,7 @@ class PlaybackController:
     def on_playback_error(self, event):
         """Signal that VLC encountered a playback error."""
         self.playback_failed.set()
+        self.track_finished.set()
 
     def start_track(self, entry):
         """Resolve and start one playlist entry."""
@@ -66,7 +74,7 @@ class PlaybackController:
         result = self.player.play()
 
         if result == -1:
-            raise RuntimeError(
+            raise VLCPlaybackError(
                 f"VLC could not start playback: {entry.title}"
             )
 
@@ -75,3 +83,33 @@ class PlaybackController:
         self.player.stop()
         self.player.release()
         self.instance.release()
+
+    def run(self):
+        """Play playlist entries sequentially."""
+        try:
+            for entry in self.playlist.entries:
+                try:
+                    print(f"\nNow playing: {entry.title}")
+                    self.start_track(entry)
+
+                except StreamResolutionError as exc:
+                    print(f"Skipping '{entry.title}': {exc}")
+                    continue
+
+                except VLCPlaybackError as exc:
+                    print(f"Skipping '{entry.title}': {exc}")
+                    continue
+
+                self.track_finished.wait()
+
+                if self.playback_failed.is_set():
+                    print(f"Playback failed: {entry.title}")
+                    continue
+
+            print("\nPlaylist finished.")
+
+        except KeyboardInterrupt:
+            print("\nPlayback interrupted.")
+
+        finally:
+            self.cleanup()
